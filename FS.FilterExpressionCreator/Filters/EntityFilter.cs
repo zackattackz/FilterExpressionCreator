@@ -94,6 +94,25 @@ namespace FS.FilterExpressionCreator.Filters
         }
 
         /// <summary>
+        /// Adds a filter for the given subclass. Existing filters for the same property are preserved.
+        /// </summary>
+        /// <typeparam name="TEntitySubclass">The type of the sub class that <paramref name="subclassFilter"/> is for.</typeparam>
+        /// <param name="subclassFilter">The filter that defines rules for <typeparamref name="TEntity"/> instances of type <typeparamref name="TEntitySubclass"/>.</param>
+        public EntityFilter<TEntity> AddSubclassFilter<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter) where TEntitySubclass : TEntity
+        {
+            if (!typeof(TEntitySubclass).IsSubclassOf(typeof(TEntity)))
+            {
+                throw new ArgumentException($"Type {nameof(TEntitySubclass)} does not derive from {nameof(TEntity)}", nameof(subclassFilter));
+            }
+
+            if (subclassFilter == null)
+                return this;
+
+            AddSubclassFilterInternal(subclassFilter);
+            return this;
+        }
+
+        /// <summary>
         /// Replaces the filter for the given property. Existing filters for the same property are removed.
         /// </summary>
         /// <typeparam name="TProperty">The type of the property.</typeparam>
@@ -138,6 +157,25 @@ namespace FS.FilterExpressionCreator.Filters
         }
 
         /// <summary>
+        /// Replaces the filter for the given subclass. Existing filters for the same subclass are removed.
+        /// </summary>
+        /// <typeparam name="TEntitySubclass">The type of the sub class that <paramref name="subclassFilter"/> is for.</typeparam>
+        /// <param name="subclassFilter">The filter that defines rules for <typeparamref name="TEntity"/> instances of type <typeparamref name="TEntitySubclass"/>.</param>
+        public EntityFilter<TEntity> ReplaceSubclassFilter<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter) where TEntitySubclass : TEntity
+        {
+            if (!typeof(TEntitySubclass).IsSubclassOf(typeof(TEntity)))
+            {
+                throw new ArgumentException($"Type {nameof(TEntitySubclass)} does not derive from {nameof(TEntity)}", nameof(subclassFilter));
+            }
+
+            if (subclassFilter == null)
+                return ClearSubclassFilters<TEntitySubclass>();
+
+            ReplaceSubclassFilterInternal(subclassFilter);
+            return this;
+        }
+
+        /// <summary>
         /// Remove all filters for the specified property.
         /// </summary>
         /// <typeparam name="TProperty">The type of the t property.</typeparam>
@@ -154,6 +192,15 @@ namespace FS.FilterExpressionCreator.Filters
         public EntityFilter<TEntity> Clear()
         {
             ClearInternal();
+            return this;
+        }
+
+        /// <summary>
+        /// Removes all subclass filters
+        /// </summary>
+        public EntityFilter<TEntity> ClearSubclassFilters<TEntitySubclass>()
+        {
+            ClearSubclassFiltersInternal<TEntitySubclass>();
             return this;
         }
 
@@ -230,6 +277,7 @@ namespace FS.FilterExpressionCreator.Filters
 
         internal List<PropertyFilter> PropertyFilters;
         internal List<NestedFilter> NestedFilters;
+        internal List<SubclassFilter> SubclassFilters;
 
         /// <summary>
         /// Gets or sets the default configuration. Can be used to set a system-wide configuration.
@@ -248,6 +296,7 @@ namespace FS.FilterExpressionCreator.Filters
         {
             PropertyFilters = new List<PropertyFilter>();
             NestedFilters = new List<NestedFilter>();
+            SubclassFilters = new List<SubclassFilter>();
         }
 
         /// <summary>
@@ -314,6 +363,12 @@ namespace FS.FilterExpressionCreator.Filters
             NestedFilters.Add(new NestedFilter(propertyName, nestedFilter));
         }
 
+        /// <inheritdoc cref="EntityFilter{TEntity}.AddSubclassFilter{TEntitySubclass}(EntityFilter{TEntitySubclass})" />
+        protected void AddSubclassFilterInternal<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter)
+        {
+            SubclassFilters.Add(new SubclassFilter(typeof(TEntitySubclass), subclassFilter));
+        }
+
         /// <summary>
         /// Replaces the filter for the given property using the default filter operator. Existing filters for the same property are removed.
         /// </summary>
@@ -336,6 +391,14 @@ namespace FS.FilterExpressionCreator.Filters
             NestedFilters.Add(new NestedFilter(propertyName, nestedFilter));
         }
 
+        /// <inheritdoc cref="EntityFilter{TEntity}.ReplaceSubclassFilter{TEntitySubclass}(EntityFilter{TEntitySubclass})" />
+        protected void ReplaceSubclassFilterInternal<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter)
+        {
+            var subclassType = typeof(TEntitySubclass);
+            SubclassFilters.RemoveAll(x => x.SubclassType == subclassType);
+            SubclassFilters.Add(new SubclassFilter(typeof(TEntitySubclass), subclassFilter));
+        }
+
         /// <inheritdoc cref="EntityFilter{TEntity}.Clear{TProperty}(Expression{Func{TEntity, TProperty}})" />
         protected void ClearInternal<TEntity, TProperty>(Expression<Func<TEntity, TProperty>> property)
         {
@@ -346,6 +409,14 @@ namespace FS.FilterExpressionCreator.Filters
         /// <inheritdoc cref="EntityFilter{TEntity}.Clear" />
         protected void ClearInternal()
             => PropertyFilters.Clear();
+
+        ///  <inheritdoc cref="EntityFilter{TEntity}.ClearSubclassFilters{TEntitySubclass}"/>
+        protected void ClearSubclassFiltersInternal<TEntitySubclass>()
+        {
+            var subclassType = typeof(TEntitySubclass);
+            SubclassFilters.RemoveAll(x => x.SubclassType == subclassType);
+        }
+
 
         /// <inheritdoc cref="EntityFilter{TEntity}.CreateFilter" />
         protected internal Expression<Func<TEntity, bool>> CreateFilter<TEntity>(FilterConfiguration configuration = null, IPropertyFilterInterceptor interceptor = null)
@@ -427,9 +498,28 @@ namespace FS.FilterExpressionCreator.Filters
                 })
                 .ToList();
 
+            var subclassFilter = SubclassFilters
+                .Select(x =>
+                {
+                    var createFilterExpression = _createFilterMethod.MakeGenericMethod(x.SubclassType);
+                    var subclassFilterExpression = (LambdaExpression)createFilterExpression.Invoke(x.EntityFilter, new object[] { configuration, interceptor });
+
+                    var tEntityParameter = Expression.Parameter(typeof(TEntity), "x");
+                    var superclassTosubclassConversionExpression = Expression.Lambda(Expression.Convert(tEntityParameter, x.SubclassType), tEntityParameter);
+
+                    var invokeSubclassFilterLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Invoke(subclassFilterExpression, Expression.Convert(tEntityParameter, x.SubclassType)), tEntityParameter);
+
+                    var instanceIsSubclassLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.TypeIs(tEntityParameter, x.SubclassType), tEntityParameter);
+
+                    var filterExpression = new[] { instanceIsSubclassLambda, invokeSubclassFilterLambda }.CombineWithConditionalAnd();
+                    return filterExpression;
+                })
+                .CombineWithConditionalOr();
+
             return propertyFilters
                 .Concat(nestedObjectFilters)
                 .Concat(nestedListsFilters)
+                .Append(subclassFilter)
                 .CombineWithConditionalAnd();
         }
     }
