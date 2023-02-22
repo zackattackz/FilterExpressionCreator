@@ -505,7 +505,6 @@ namespace FS.FilterExpressionCreator.Filters
                     var subclassFilterExpression = (LambdaExpression)createFilterExpression.Invoke(x.EntityFilter, new object[] { configuration, interceptor });
 
                     var tEntityParameter = Expression.Parameter(typeof(TEntity), "x");
-                    var superclassTosubclassConversionExpression = Expression.Lambda(Expression.Convert(tEntityParameter, x.SubclassType), tEntityParameter);
 
                     var invokeSubclassFilterLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Invoke(subclassFilterExpression, Expression.Convert(tEntityParameter, x.SubclassType)), tEntityParameter);
 
