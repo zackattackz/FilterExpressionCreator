@@ -501,17 +501,22 @@ namespace FS.FilterExpressionCreator.Filters
             var subclassFilter = SubclassFilters
                 .Select(x =>
                 {
-                    var createFilterExpression = _createFilterMethod.MakeGenericMethod(x.SubclassType);
-                    var subclassFilterExpression = (LambdaExpression)createFilterExpression.Invoke(x.EntityFilter, new object[] { configuration, interceptor });
+                    var filterExpressions = new List<Expression<Func<TEntity, bool>>>();
 
                     var tEntityParameter = Expression.Parameter(typeof(TEntity), "x");
 
-                    var invokeSubclassFilterLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Invoke(subclassFilterExpression, Expression.Convert(tEntityParameter, x.SubclassType)), tEntityParameter);
-
                     var instanceIsSubclassLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.TypeIs(tEntityParameter, x.SubclassType), tEntityParameter);
+                    filterExpressions.Add(instanceIsSubclassLambda);
 
-                    var filterExpression = new[] { instanceIsSubclassLambda, invokeSubclassFilterLambda }.CombineWithConditionalAnd();
-                    return filterExpression;
+                    var createFilterExpression = _createFilterMethod.MakeGenericMethod(x.SubclassType);
+                    var subclassFilterExpression = (LambdaExpression)createFilterExpression.Invoke(x.EntityFilter, new object[] { configuration, interceptor });
+                    if (subclassFilterExpression != null)
+                    {
+                        var invokeSubclassFilterLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Invoke(subclassFilterExpression, Expression.Convert(tEntityParameter, x.SubclassType)), tEntityParameter);
+                        filterExpressions.Add(invokeSubclassFilterLambda);
+                    }
+
+                    return filterExpressions.CombineWithConditionalAnd();
                 })
                 .CombineWithConditionalOr();
 
