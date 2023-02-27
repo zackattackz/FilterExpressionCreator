@@ -94,21 +94,21 @@ namespace FS.FilterExpressionCreator.Filters
         }
 
         /// <summary>
-        /// Adds a filter for the given subclass. Existing filters for the same property are preserved.
+        /// Adds a filter for the given derived class. Existing filters for the same property are preserved.
         /// </summary>
-        /// <typeparam name="TEntitySubclass">The type of the sub class that <paramref name="subclassFilter"/> is for.</typeparam>
-        /// <param name="subclassFilter">The filter that defines rules for <typeparamref name="TEntity"/> instances of type <typeparamref name="TEntitySubclass"/>.</param>
-        public EntityFilter<TEntity> AddSubclassFilter<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter) where TEntitySubclass : TEntity
+        /// <typeparam name="TEntityDerived">The type of the derived class that <paramref name="derivedClassFilter"/> is for.</typeparam>
+        /// <param name="derivedClassFilter">The filter that defines rules for <typeparamref name="TEntity"/> instances of type <typeparamref name="TEntityDerived"/>.</param>
+        public EntityFilter<TEntity> AddDerivedClassFilter<TEntityDerived>(EntityFilter<TEntityDerived> derivedClassFilter) where TEntityDerived : TEntity
         {
-            if (!typeof(TEntitySubclass).IsSubclassOf(typeof(TEntity)))
+            if (!typeof(TEntityDerived).IsSubclassOf(typeof(TEntity)))
             {
-                throw new ArgumentException($"Type {nameof(TEntitySubclass)} does not derive from {nameof(TEntity)}", nameof(subclassFilter));
+                throw new ArgumentException($"Type {nameof(TEntityDerived)} does not derive from {nameof(TEntity)}", nameof(derivedClassFilter));
             }
 
-            if (subclassFilter == null)
+            if (derivedClassFilter == null)
                 return this;
 
-            AddSubclassFilterInternal(subclassFilter);
+            AddDerivedClassFilterInternal(derivedClassFilter);
             return this;
         }
 
@@ -157,21 +157,21 @@ namespace FS.FilterExpressionCreator.Filters
         }
 
         /// <summary>
-        /// Replaces the filter for the given subclass. Existing filters for the same subclass are removed.
+        /// Replaces the filter for the given derived class. Existing filters for the same derived class are removed.
         /// </summary>
-        /// <typeparam name="TEntitySubclass">The type of the sub class that <paramref name="subclassFilter"/> is for.</typeparam>
-        /// <param name="subclassFilter">The filter that defines rules for <typeparamref name="TEntity"/> instances of type <typeparamref name="TEntitySubclass"/>.</param>
-        public EntityFilter<TEntity> ReplaceSubclassFilter<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter) where TEntitySubclass : TEntity
+        /// <typeparam name="TEntityDerived">The type of the derived class that <paramref name="derivedClassFilter"/> is for.</typeparam>
+        /// <param name="derivedClassFilter">The filter that defines rules for <typeparamref name="TEntity"/> instances of type <typeparamref name="TEntityDerived"/>.</param>
+        public EntityFilter<TEntity> ReplaceDerivedClassFilter<TEntityDerived>(EntityFilter<TEntityDerived> derivedClassFilter) where TEntityDerived : TEntity
         {
-            if (!typeof(TEntitySubclass).IsSubclassOf(typeof(TEntity)))
+            if (!typeof(TEntityDerived).IsSubclassOf(typeof(TEntity)))
             {
-                throw new ArgumentException($"Type {nameof(TEntitySubclass)} does not derive from {nameof(TEntity)}", nameof(subclassFilter));
+                throw new ArgumentException($"Type {nameof(TEntityDerived)} does not derive from {nameof(TEntity)}", nameof(derivedClassFilter));
             }
 
-            if (subclassFilter == null)
-                return ClearSubclassFilters<TEntitySubclass>();
+            if (derivedClassFilter == null)
+                return ClearDerivedClassFilters<TEntityDerived>();
 
-            ReplaceSubclassFilterInternal(subclassFilter);
+            ReplaceDerivedClassFilterInternal(derivedClassFilter);
             return this;
         }
 
@@ -196,11 +196,11 @@ namespace FS.FilterExpressionCreator.Filters
         }
 
         /// <summary>
-        /// Removes all subclass filters
+        /// Removes all derived class filters
         /// </summary>
-        public EntityFilter<TEntity> ClearSubclassFilters<TEntitySubclass>()
+        public EntityFilter<TEntity> ClearDerivedClassFilters<TEntityDerived>()
         {
-            ClearSubclassFiltersInternal<TEntitySubclass>();
+            ClearDerivedClassFiltersInternal<TEntityDerived>();
             return this;
         }
 
@@ -277,7 +277,7 @@ namespace FS.FilterExpressionCreator.Filters
 
         internal List<PropertyFilter> PropertyFilters;
         internal List<NestedFilter> NestedFilters;
-        internal List<SubclassFilter> SubclassFilters;
+        internal List<DerivedClassFilter> DerivedClassFilters;
 
         /// <summary>
         /// Gets or sets the default configuration. Can be used to set a system-wide configuration.
@@ -296,7 +296,7 @@ namespace FS.FilterExpressionCreator.Filters
         {
             PropertyFilters = new List<PropertyFilter>();
             NestedFilters = new List<NestedFilter>();
-            SubclassFilters = new List<SubclassFilter>();
+            DerivedClassFilters = new List<DerivedClassFilter>();
         }
 
         /// <summary>
@@ -363,10 +363,10 @@ namespace FS.FilterExpressionCreator.Filters
             NestedFilters.Add(new NestedFilter(propertyName, nestedFilter));
         }
 
-        /// <inheritdoc cref="EntityFilter{TEntity}.AddSubclassFilter{TEntitySubclass}(EntityFilter{TEntitySubclass})" />
-        protected void AddSubclassFilterInternal<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter)
+        /// <inheritdoc cref="EntityFilter{TEntity}.AddDerivedClassFilter{TEntityDerived}(EntityFilter{TEntityDerived})" />
+        protected void AddDerivedClassFilterInternal<TEntityDerived>(EntityFilter<TEntityDerived> derivedClassFilter)
         {
-            SubclassFilters.Add(new SubclassFilter(typeof(TEntitySubclass), subclassFilter));
+            DerivedClassFilters.Add(new DerivedClassFilter(typeof(TEntityDerived), derivedClassFilter));
         }
 
         /// <summary>
@@ -391,12 +391,12 @@ namespace FS.FilterExpressionCreator.Filters
             NestedFilters.Add(new NestedFilter(propertyName, nestedFilter));
         }
 
-        /// <inheritdoc cref="EntityFilter{TEntity}.ReplaceSubclassFilter{TEntitySubclass}(EntityFilter{TEntitySubclass})" />
-        protected void ReplaceSubclassFilterInternal<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter)
+        /// <inheritdoc cref="EntityFilter{TEntity}.ReplaceDerivedClassFilter{TEntityDerived}(EntityFilter{TEntityDerived})" />
+        protected void ReplaceDerivedClassFilterInternal<TEntityDerived>(EntityFilter<TEntityDerived> derivedClassFilter)
         {
-            var subclassType = typeof(TEntitySubclass);
-            SubclassFilters.RemoveAll(x => x.SubclassType == subclassType);
-            SubclassFilters.Add(new SubclassFilter(typeof(TEntitySubclass), subclassFilter));
+            var derivedClassType = typeof(TEntityDerived);
+            DerivedClassFilters.RemoveAll(x => x.DerivedClassType == derivedClassType);
+            DerivedClassFilters.Add(new DerivedClassFilter(typeof(TEntityDerived), derivedClassFilter));
         }
 
         /// <inheritdoc cref="EntityFilter{TEntity}.Clear{TProperty}(Expression{Func{TEntity, TProperty}})" />
@@ -410,11 +410,11 @@ namespace FS.FilterExpressionCreator.Filters
         protected void ClearInternal()
             => PropertyFilters.Clear();
 
-        ///  <inheritdoc cref="EntityFilter{TEntity}.ClearSubclassFilters{TEntitySubclass}"/>
-        protected void ClearSubclassFiltersInternal<TEntitySubclass>()
+        ///  <inheritdoc cref="EntityFilter{TEntity}.ClearDerivedClassFilters{TEntityDerived}"/>
+        protected void ClearDerivedClassFiltersInternal<TEntityDerived>()
         {
-            var subclassType = typeof(TEntitySubclass);
-            SubclassFilters.RemoveAll(x => x.SubclassType == subclassType);
+            var derivedClassType = typeof(TEntityDerived);
+            DerivedClassFilters.RemoveAll(x => x.DerivedClassType == derivedClassType);
         }
 
 
@@ -498,30 +498,30 @@ namespace FS.FilterExpressionCreator.Filters
                 })
                 .ToList();
 
-            var subclassFilter = SubclassFilters
+            var derivedClassFilter = DerivedClassFilters
                 .Select(x =>
                 {
                     var tEntityParameter = Expression.Parameter(typeof(TEntity), "x");
 
-                    var instanceIsSubClassExpression = Expression.TypeIs(tEntityParameter, x.SubclassType);
-                    var instanceIsSubclassLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(instanceIsSubClassExpression, tEntityParameter);
+                    var instanceIsDerivedClassExpression = Expression.TypeIs(tEntityParameter, x.DerivedClassType);
+                    var instanceIsDerivedClassLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(instanceIsDerivedClassExpression, tEntityParameter);
 
-                    var createFilterExpression = _createFilterMethod.MakeGenericMethod(x.SubclassType);
-                    var subclassFilterExpression = (LambdaExpression)createFilterExpression.Invoke(x.EntityFilter, new object[] { configuration, interceptor });
-                    if (subclassFilterExpression == null)
+                    var createFilterExpression = _createFilterMethod.MakeGenericMethod(x.DerivedClassType);
+                    var derivedClassFilterExpression = (LambdaExpression)createFilterExpression.Invoke(x.EntityFilter, new object[] { configuration, interceptor });
+                    if (derivedClassFilterExpression == null)
                     {
-                        return instanceIsSubclassLambda;
+                        return instanceIsDerivedClassLambda;
                     }
 
-                    var invokeSubclassFilterLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Invoke(subclassFilterExpression, Expression.Convert(tEntityParameter, x.SubclassType)), tEntityParameter);
-                    return new[] { instanceIsSubclassLambda, invokeSubclassFilterLambda }.CombineWithConditionalAnd();
+                    var invokeDerivedClassFilterLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Invoke(derivedClassFilterExpression, Expression.Convert(tEntityParameter, x.DerivedClassType)), tEntityParameter);
+                    return new[] { instanceIsDerivedClassLambda, invokeDerivedClassFilterLambda }.CombineWithConditionalAnd();
                 })
                 .CombineWithConditionalOr();
 
             return propertyFilters
                 .Concat(nestedObjectFilters)
                 .Concat(nestedListsFilters)
-                .Append(subclassFilter)
+                .Append(derivedClassFilter)
                 .CombineWithConditionalAnd();
         }
     }
