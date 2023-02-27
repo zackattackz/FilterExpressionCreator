@@ -15,27 +15,27 @@ using System.Threading.Tasks;
 namespace FS.FilterExpressionCreator.Tests.Tests.EntityFilter
 {
     [TestClass, ExcludeFromCodeCoverage]
-    public class SubclassFilterTests : TestBase
+    public class DerivedClassFilterTests : TestBase
     {
         [DataTestMethod]
         [FilterFuncDataSource(nameof(GetEntityFilterFunctions), typeof(TestModel<string>))]
-        public void WhenSubclassAFilterIsApplied_ThenSubclassBIsFiltered(EntityFilterFunc<TestModel<string>> filterFunc)
+        public void WhenDerivedClassAFilterIsApplied_ThenDerivedClassAIsFilteredFor(EntityFilterFunc<TestModel<string>> filterFunc)
         {
-            var subclassFilter = new EntityFilter<TestModelSubclassA<string>>()
+            var derivedClassFilter = new EntityFilter<TestModelDerivedClassA<string>>()
                 .Replace(x => x.SubValueA, "=SubValueA");
 
             var superclassFilter = new EntityFilter<TestModel<string>>()
                 .Replace(x => x.ValueA, "=ValueA")
-                .AddSubclassFilter(subclassFilter);
+                .AddDerivedClassFilter(derivedClassFilter);
 
             var testItems = new List<TestModel<string>>()
             {
-                new TestModelSubclassA<string> { ValueA = "ValueA", SubValueA = "SubValueA" },
-                new TestModelSubclassA<string> { ValueA = "ValueB", SubValueA = "SubValueA"},
-                new TestModelSubclassA<string> { ValueA = "ValueA", SubValueA = "SubValueB"},
+                new TestModelDerivedClassA<string> { ValueA = "ValueA", SubValueA = "SubValueA" },
+                new TestModelDerivedClassA<string> { ValueA = "ValueB", SubValueA = "SubValueA"},
+                new TestModelDerivedClassA<string> { ValueA = "ValueA", SubValueA = "SubValueB"},
                 new TestModel<string> { ValueA = "ValueA" },
                 new TestModel<string> { ValueA = "ValueB" },
-                new TestModelSubclassB<string> { ValueA = "ValueA", SubValueB = "SubValueB"},
+                new TestModelDerivedClassB<string> { ValueA = "ValueA", SubValueB = "SubValueB"},
             };
 
             var filteredEntities = filterFunc(testItems, superclassFilter);

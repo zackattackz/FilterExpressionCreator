@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FS.FilterExpressionCreator.Tests.Models
 {
-    public class TestModelSubclassA<TValue> : TestModel<TValue>
+    public class TestModelDerivedClassA<TValue> : TestModel<TValue>
     {
         public TValue SubValueA { get; set; }
     }
