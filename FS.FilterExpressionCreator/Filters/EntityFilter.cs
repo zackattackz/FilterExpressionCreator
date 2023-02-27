@@ -98,8 +98,7 @@ namespace FS.FilterExpressionCreator.Filters
         /// </summary>
         /// <typeparam name="TEntitySubclass">The type of the sub class that <paramref name="subclassFilter"/> is for.</typeparam>
         /// <param name="subclassFilter">The filter that defines rules for <typeparamref name="TEntity"/> instances of type <typeparamref name="TEntitySubclass"/>.</param>
-        /// <param name="isInclusive">If true, the parent filter should include all non <typeparamref name="TEntitySubclass"/> type instances. If false it should exclude.</param>
-        public EntityFilter<TEntity> AddSubclassFilter<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter, bool isInclusive = false) where TEntitySubclass : TEntity
+        public EntityFilter<TEntity> AddSubclassFilter<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter) where TEntitySubclass : TEntity
         {
             if (!typeof(TEntitySubclass).IsSubclassOf(typeof(TEntity)))
             {
@@ -109,7 +108,7 @@ namespace FS.FilterExpressionCreator.Filters
             if (subclassFilter == null)
                 return this;
 
-            AddSubclassFilterInternal(subclassFilter, isInclusive);
+            AddSubclassFilterInternal(subclassFilter);
             return this;
         }
 
@@ -162,8 +161,7 @@ namespace FS.FilterExpressionCreator.Filters
         /// </summary>
         /// <typeparam name="TEntitySubclass">The type of the sub class that <paramref name="subclassFilter"/> is for.</typeparam>
         /// <param name="subclassFilter">The filter that defines rules for <typeparamref name="TEntity"/> instances of type <typeparamref name="TEntitySubclass"/>.</param>
-        /// <param name="isInclusive">If true, the parent filter should include non <typeparamref name="TEntitySubclass"/> type instances. If false it should exclude.</param>
-        public EntityFilter<TEntity> ReplaceSubclassFilter<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter, bool isInclusive = false) where TEntitySubclass : TEntity
+        public EntityFilter<TEntity> ReplaceSubclassFilter<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter) where TEntitySubclass : TEntity
         {
             if (!typeof(TEntitySubclass).IsSubclassOf(typeof(TEntity)))
             {
@@ -173,7 +171,7 @@ namespace FS.FilterExpressionCreator.Filters
             if (subclassFilter == null)
                 return ClearSubclassFilters<TEntitySubclass>();
 
-            ReplaceSubclassFilterInternal(subclassFilter, isInclusive);
+            ReplaceSubclassFilterInternal(subclassFilter);
             return this;
         }
 
@@ -365,10 +363,10 @@ namespace FS.FilterExpressionCreator.Filters
             NestedFilters.Add(new NestedFilter(propertyName, nestedFilter));
         }
 
-        /// <inheritdoc cref="EntityFilter{TEntity}.AddSubclassFilter{TEntitySubclass}(EntityFilter{TEntitySubclass}, bool)" />
-        protected void AddSubclassFilterInternal<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter, bool isInclusive)
+        /// <inheritdoc cref="EntityFilter{TEntity}.AddSubclassFilter{TEntitySubclass}(EntityFilter{TEntitySubclass})" />
+        protected void AddSubclassFilterInternal<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter)
         {
-            SubclassFilters.Add(new SubclassFilter(typeof(TEntitySubclass), subclassFilter, isInclusive));
+            SubclassFilters.Add(new SubclassFilter(typeof(TEntitySubclass), subclassFilter));
         }
 
         /// <summary>
@@ -393,12 +391,12 @@ namespace FS.FilterExpressionCreator.Filters
             NestedFilters.Add(new NestedFilter(propertyName, nestedFilter));
         }
 
-        /// <inheritdoc cref="EntityFilter{TEntity}.ReplaceSubclassFilter{TEntitySubclass}(EntityFilter{TEntitySubclass}, bool)" />
-        protected void ReplaceSubclassFilterInternal<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter, bool isInclusive)
+        /// <inheritdoc cref="EntityFilter{TEntity}.ReplaceSubclassFilter{TEntitySubclass}(EntityFilter{TEntitySubclass})" />
+        protected void ReplaceSubclassFilterInternal<TEntitySubclass>(EntityFilter<TEntitySubclass> subclassFilter)
         {
             var subclassType = typeof(TEntitySubclass);
             SubclassFilters.RemoveAll(x => x.SubclassType == subclassType);
-            SubclassFilters.Add(new SubclassFilter(typeof(TEntitySubclass), subclassFilter, isInclusive));
+            SubclassFilters.Add(new SubclassFilter(typeof(TEntitySubclass), subclassFilter));
         }
 
         /// <inheritdoc cref="EntityFilter{TEntity}.Clear{TProperty}(Expression{Func{TEntity, TProperty}})" />
@@ -503,32 +501,20 @@ namespace FS.FilterExpressionCreator.Filters
             var subclassFilter = SubclassFilters
                 .Select(x =>
                 {
-                    var filterExpressions = new List<Expression<Func<TEntity, bool>>>();
-
                     var tEntityParameter = Expression.Parameter(typeof(TEntity), "x");
 
                     var instanceIsSubClassExpression = Expression.TypeIs(tEntityParameter, x.SubclassType);
-
                     var instanceIsSubclassLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(instanceIsSubClassExpression, tEntityParameter);
-                    filterExpressions.Add(instanceIsSubclassLambda);
 
                     var createFilterExpression = _createFilterMethod.MakeGenericMethod(x.SubclassType);
                     var subclassFilterExpression = (LambdaExpression)createFilterExpression.Invoke(x.EntityFilter, new object[] { configuration, interceptor });
-                    if (subclassFilterExpression != null)
+                    if (subclassFilterExpression == null)
                     {
-                        var invokeSubclassFilterLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Invoke(subclassFilterExpression, Expression.Convert(tEntityParameter, x.SubclassType)), tEntityParameter);
-                        filterExpressions.Add(invokeSubclassFilterLambda);
+                        return instanceIsSubclassLambda;
                     }
 
-                    var filterExpression = filterExpressions.CombineWithConditionalAnd();
-
-                    if (!x.IsInclusive || subclassFilterExpression == null)
-                    {
-                        return filterExpression;
-                    }
-                    
-                    var instanceIsNotSubclassLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Not(instanceIsSubClassExpression), tEntityParameter);
-                    return new[] { instanceIsNotSubclassLambda, filterExpression }.CombineWithConditionalOr();
+                    var invokeSubclassFilterLambda = (Expression<Func<TEntity, bool>>)Expression.Lambda(Expression.Invoke(subclassFilterExpression, Expression.Convert(tEntityParameter, x.SubclassType)), tEntityParameter);
+                    return new[] { instanceIsSubclassLambda, invokeSubclassFilterLambda }.CombineWithConditionalAnd();
                 })
                 .CombineWithConditionalOr();
 

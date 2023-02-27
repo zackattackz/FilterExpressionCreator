@@ -8,13 +8,10 @@ namespace FS.FilterExpressionCreator.Filters
 
         public EntityFilter EntityFilter { get; }
 
-        public bool IsInclusive { get; set; }
-
-        public SubclassFilter(Type subclassType, EntityFilter entityFilter, bool isInclusive)
+        public SubclassFilter(Type subclassType, EntityFilter entityFilter)
         {
             SubclassType = subclassType ?? throw new ArgumentNullException(nameof(subclassType));
             EntityFilter = entityFilter ?? new EntityFilter();
-            IsInclusive = isInclusive;
         }
     }
 }
